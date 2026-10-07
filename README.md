@@ -1,46 +1,69 @@
 # Task Management REST API
 
-A Flask REST API for multi-user task management with JWT authentication, SQLAlchemy models, PostgreSQL support through Docker, role-based task access, and Pytest integration tests.
+A multi-user task management REST API built with Flask and SQLAlchemy. Features JWT authentication, role-based access control (users vs. admins), PostgreSQL support via Docker, and Pytest integration tests.
 
-This project matches the resume bullet:
+## Tech Stack
 
-> Developed a multi-user task management REST API in Flask with PostgreSQL and SQLAlchemy, supporting full CRUD with role-based access, JWT-secured endpoints, Docker containerization, and Pytest integration tests covering auth flows.
+- **API:** Flask, Flask-JWT-Extended, Flask-SQLAlchemy
+- **Data:** PostgreSQL (Docker), SQLite (local development)
+- **Testing:** Pytest
 
-## What You Are Building
+## Architecture
 
-The app has three main layers:
+The app follows the Flask application factory pattern: `create_app()` in `app/__init__.py` builds the Flask app, attaches extensions, registers blueprints, and wires up CLI commands and error handlers. Tests create a fresh app instance against an in-memory database.
 
-- `app/models.py`: database tables represented as Python classes.
-- `app/auth/routes.py`: registration, login, and current-user endpoints.
-- `app/tasks/routes.py`: task CRUD endpoints protected by JWTs.
+```text
+app/
+  __init__.py          App factory, blueprint registration, CLI commands
+  config.py            Environment-based configuration
+  extensions.py        SQLAlchemy and JWT extension instances
+  models.py            User and Task database models
+  auth/routes.py       Registration, login, current-user endpoints
+  tasks/routes.py      Task CRUD endpoints protected by JWT
+tests/
+  conftest.py          App and database fixtures
+  test_auth.py         Registration, login, and token tests
+  test_tasks.py        Task CRUD, validation, and access-control tests
+```
 
-The important design pattern is the app factory in `app/__init__.py`. `create_app()` builds a Flask app, attaches extensions, registers routes, and lets tests create a fresh app with a different database.
+## Quickstart
 
-## Run Locally With Python
+### Option A: Local Python (SQLite)
 
-Create a virtual environment, install dependencies, initialize the database, and run Flask:
+Create and activate a virtual environment, then install dependencies:
+
+**macOS / Linux (bash):**
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Windows (PowerShell):**
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
+
+Initialize the database and run:
+
+```bash
 flask --app wsgi.py init-db
 flask --app wsgi.py run
 ```
 
-By default, local Python runs against SQLite at `instance/tasks.db`. Docker uses PostgreSQL.
+Local Python runs against SQLite at `instance/tasks.db`.
 
-## Run With Docker And PostgreSQL
+### Option B: Docker (PostgreSQL)
 
-```powershell
+```bash
 docker compose up --build
 ```
 
-The API will be available at:
-
-```text
-http://localhost:5000
-```
+The API will be available at `http://localhost:5000`.
 
 ## API Endpoints
 
@@ -55,7 +78,7 @@ GET /health
 ```http
 POST /api/auth/register
 POST /api/auth/login
-GET /api/auth/me
+GET  /api/auth/me
 ```
 
 Example registration body:
@@ -91,10 +114,10 @@ Authorization: Bearer <access_token>
 ### Tasks
 
 ```http
-GET /api/tasks
-POST /api/tasks
-GET /api/tasks/<task_id>
-PATCH /api/tasks/<task_id>
+GET    /api/tasks
+POST   /api/tasks
+GET    /api/tasks/<task_id>
+PATCH  /api/tasks/<task_id>
 DELETE /api/tasks/<task_id>
 ```
 
@@ -110,23 +133,19 @@ Example task body:
 }
 ```
 
-Allowed statuses:
-
-```text
-todo, in_progress, done
-```
-
-Allowed priorities:
-
-```text
-low, medium, high
-```
+Allowed statuses: `todo`, `in_progress`, `done`. Allowed priorities: `low`, `medium`, `high`.
 
 ## Role-Based Access
 
-Normal users can only list, view, update, and delete their own tasks.
+Regular users can only list, view, update, and delete their own tasks. Admins can list and access all tasks. Public registration always creates a regular `user`; create an admin from the command line:
 
-Admins can list and access all tasks. Public registration always creates a normal `user`, so admins are created from the command line:
+**macOS / Linux (bash):**
+
+```bash
+ADMIN_USERNAME="admin" ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="password123" flask --app wsgi.py create-admin
+```
+
+**Windows (PowerShell):**
 
 ```powershell
 $env:ADMIN_USERNAME="admin"
@@ -135,30 +154,10 @@ $env:ADMIN_PASSWORD="password123"
 flask --app wsgi.py create-admin
 ```
 
-## Run Tests
+## Tests
 
-```powershell
+```bash
 pytest
 ```
 
-The tests use an in-memory SQLite database so they do not require Docker. They cover:
-
-- user registration and login
-- rejected login attempts
-- JWT protection on task endpoints
-- task create/list/update/delete
-- users being blocked from other users' tasks
-- admin access to all tasks
-- task validation
-
-## Learning Map
-
-Start with this order:
-
-1. Read `app/models.py` to understand how `User` and `Task` become database tables.
-2. Read `app/auth/routes.py` to see how passwords are hashed and JWTs are created.
-3. Read `app/tasks/routes.py` to see how each endpoint checks the caller's identity.
-4. Read `tests/test_auth.py` and `tests/test_tasks.py` to see how API behavior is proven.
-5. Read `docker-compose.yml` to see how Flask and PostgreSQL run together.
-
-The key mental model: every protected request carries a JWT. Flask-JWT-Extended verifies that token, then route code uses the user id and role from the token to decide what data the caller is allowed to touch.
+Tests run against an in-memory SQLite database (no Docker required) and cover registration and login, rejected logins, JWT protection on task endpoints, task create/list/update/delete, users being blocked from other users' tasks, admin access to all tasks, and task validation.
